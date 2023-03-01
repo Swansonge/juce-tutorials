@@ -31,14 +31,22 @@ GainTutorialAudioProcessorEditor::GainTutorialAudioProcessorEditor(GainTutorialA
     mPhaseButton.addListener(this);
     phaseButtonAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "INVERT_PHASE", mPhaseButton);
 
-    //LABEL
-    addAndMakeVisible(stateLabel);
-    stateLabel.setColour(juce::Label::backgroundColourId, juce::Colours::black);
-    stateLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    //WELCOME LABEL
+    addAndMakeVisible(welcomeLabel);
+    welcomeLabel.setText("Welcome to my gain tutorial plugin!", juce::dontSendNotification);
+    welcomeLabel.setColour(juce::Label::backgroundColourId, juce::Colours::white);
+    welcomeLabel.setColour(juce::Label::textColourId, juce::Colours::blue);
+    //welcomeLabel.setJustificationType(juce::Justification::centredTop);
+
+
+    ////STATE LABEL
+    //addAndMakeVisible(stateLabel);
+    //stateLabel.setColour(juce::Label::backgroundColourId, juce::Colours::black);
+    //stateLabel.setColour(juce::Label::textColourId, juce::Colours::white);
 
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (200, 300);
+    setSize (300, 300);
 }
 
 GainTutorialAudioProcessorEditor::~GainTutorialAudioProcessorEditor()
@@ -62,7 +70,7 @@ void GainTutorialAudioProcessorEditor::resized()
     mPhaseButton.setBounds(getWidth() / 2 - 50, getHeight() / 2 + 20, 100, 150);
     mPhaseButton.changeWidthToFitText();
 
-    stateLabel.setBounds(getWidth() / 2 - 15, getHeight() / 2 - 120, 50, 30);
+    welcomeLabel.setBounds(getWidth() / 2 - 100, getHeight() / 2 - 120, 200, 30);
     
 }
 

@@ -26,7 +26,7 @@ GainTutorialAudioProcessor::GainTutorialAudioProcessor()
                        //below is initializer list
                        //apvts descrip: *this deferences pointer to AudioProcessor object, nullptr becuase we aren't using undo manager, createParameters() returns ParameterLayout object
                        ), 
-                       apvts(*this, nullptr, "Parameters", createParameters())
+                       apvts(*this, nullptr, juce::Identifier("Parameters"), createParameters())
                        
 #endif
 //start actual code of constructor
@@ -149,6 +149,7 @@ bool GainTutorialAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
 }
 #endif
 
+
 void GainTutorialAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -207,12 +208,23 @@ void GainTutorialAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
+
+    auto state = apvts.copyState();
+    std::unique_ptr<juce::XmlElement> xml(state.createXml());
+    copyXmlToBinary(*xml, destData); 
 }
 
 void GainTutorialAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+
+    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
+
+    //check that the ValueTree-generated XML is of the correect ValueTree type (uses tag name)
+    if (xmlState.get() != nullptr)
+        if (xmlState->hasTagName(apvts.state.getType()))
+            apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
 }
 
 //==============================================================================

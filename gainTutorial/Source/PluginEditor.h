@@ -33,6 +33,7 @@ private:
     juce::Slider mGainSlider;
     juce::ToggleButton mPhaseButton;
     juce::Label stateLabel;
+    juce::Label welcomeLabel;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainSliderAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> phaseButtonAttachment;
