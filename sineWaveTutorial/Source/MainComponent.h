@@ -26,12 +26,17 @@ public:
 
 private:
     //==============================================================================
-    // Your private member variables go here...
 
     juce::Slider frequencySlider;
+    juce::Slider gainSlider;
     double currentSampleRate = { 0.0 };
     double currentAngle = { 0.0 };
     double angleDelta = { 0.0 };
+    float gain{ 0.0f };
+    double currentFrequency = { 500 };
+    double targetFrequency = { 500 };
+    float currentLevel = { 0.125f };
+    float targetLevel = { 0.125f };
 
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
