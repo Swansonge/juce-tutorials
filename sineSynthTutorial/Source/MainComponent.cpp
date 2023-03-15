@@ -1,21 +1,39 @@
 #include "MainComponent.h"
 
+
 //==============================================================================
 MainComponent::MainComponent()
-//intialize synthAudioSource and keyboardComponent members
-    : synthAudioSource (keyboardState),
-      keyboardComponent (keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
 {
-
-    addAndMakeVisible(keyboardComponent);
-    setAudioChannels(0, 2);
-
-
     // Make sure you set the size of the component after
     // you add any child components.
-    setSize(800, 600);
-    
-    startTimer(400);
+    setSize (800, 600);
+
+    // Specify the number of input and output channels that we want to open
+    setAudioChannels (0, 2);
+
+    //set range in decibels
+    leftDecibelSlider.setRange(-96.0f, 0.0f);
+    rightDecibelSlider.setRange(-96.0f, 0.0f);
+    leftLinearSlider.setRange(0.0f, 1.0f);
+    rightLinearSlider.setRange(0.0f, 1.0f);
+
+    leftDecibelSlider.setValue(juce::Decibels::gainToDecibels(leftLevel, -96.0f));
+    rightDecibelSlider.setValue(juce::Decibels::gainToDecibels(rightLevel, -96.0f));
+    leftLinearSlider.setValue(0.0f);
+    rightLinearSlider.setValue(0.0f);
+
+    //lambda functions that will be called whenever slider value is changed
+    //1) convert value of gain to decibels 
+    leftDecibelSlider.onValueChange = [this] { leftLevel = juce::Decibels::decibelsToGain((float)leftDecibelSlider.getValue(), -96.0f); };
+    rightDecibelSlider.onValueChange = [this] { rightLevel = juce::Decibels::decibelsToGain((float)rightDecibelSlider.getValue(), -96.0f); };
+    //leftLinearSlider.onValueChange = [this] { leftLevel = leftLinearSlider.getValue(); leftDecibelSlider.setValue(juce::Decibels::gainToDecibels((float)leftLevel)); };
+    //rightLinearSlider.onValueChange = [this] { rightLevel = rightLinearSlider.getValue(); rightDecibelSlider.setValue(juce::Decibels::gainToDecibels((float)rightLevel)); };
+
+    leftDecibelLabel.setText("Noise Level in dB", juce::dontSendNotification);
+    rightDecibelLabel.setText("Noise Level in dB", juce::dontSendNotification);
+    leftLinearLabel.setText("Noise Level (linear)", juce::dontSendNotification);
+    rightLinearLabel.setText("Noise Level (linear)", juce::dontSendNotification);
+
 }
 
 MainComponent::~MainComponent()
@@ -27,17 +45,64 @@ MainComponent::~MainComponent()
 //==============================================================================
 void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRate)
 {
-    synthAudioSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
+    // This function will be called when the audio device is started, or when
+    // its settings (i.e. sample rate, block size, etc) are changed.
+
+    // You can use this function to initialise any resources you might need,
+    // but be careful - it will be called on the audio thread, not the GUI thread.
+
+    juce::String message;
+    message << "Preparing to play audio...\n";
+    message << " samplesPerBlockExpected = " << samplesPerBlockExpected << "\n";
+    message << " sampleRate = " << sampleRate;
+    juce::Logger::getCurrentLogger()->writeToLog(message);
 }
 
 void MainComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill)
 {
-    synthAudioSource.getNextAudioBlock(bufferToFill);
+    // Your audio-processing code goes here!
+
+    for (auto channel = 0; channel < bufferToFill.buffer->getNumChannels(); channel++)
+    {
+        //get function-local copy of level
+        auto currentLeftLevel = leftLevel;
+        auto leftLevelScale = currentLeftLevel * 2.0f;
+
+        auto currentRightLevel = rightLevel;
+        auto rightLevelScale = currentRightLevel * 2.0f;
+
+        //Fill the required number of samples with noise between -0.125 and +0.125
+        for (auto sample = 0; sample < bufferToFill.numSamples; ++sample)
+        {
+            //adjust individual levels for left and right sliders
+            if (channel == 0) 
+            {
+                //Get a pointer to the start sample in the buffer for this audio output channel
+                auto* buffer = bufferToFill.buffer->getWritePointer(channel, bufferToFill.startSample);
+
+                //generate white noise.To get range of -x to x for noise, multiply nextFloat() * 2x then subtract x
+                buffer[sample] = random.nextFloat() * leftLevelScale - currentLeftLevel;
+            }
+            else if (channel == 1)
+            {
+
+                //Get a pointer to the start sample in the buffer for this audio output channel
+                auto* buffer = bufferToFill.buffer->getWritePointer(channel, bufferToFill.startSample);
+
+                buffer[sample] = random.nextFloat() * rightLevelScale - currentRightLevel;
+            }
+            
+            
+        }
+    }
 }
 
 void MainComponent::releaseResources()
 {
-    synthAudioSource.releaseResources();
+    // This will be called when the audio device stops, or when it is being
+    // restarted due to a setting change.
+
+    juce::Logger::getCurrentLogger()->writeToLog("Releasing audio resources");
 }
 
 //==============================================================================
@@ -46,168 +111,50 @@ void MainComponent::paint (juce::Graphics& g)
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
 
-    // You can add your drawing code here!
+    //left channel decibel slider
+    addAndMakeVisible(leftDecibelSlider);
+    leftDecibelSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxRight, false, 75, 25);
+
+    ////left channel linear slider
+    //addAndMakeVisible(leftLinearSlider);
+    //leftLinearSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxRight, false, 75, 25);
+    
+    //left slider decibel label
+    addAndMakeVisible(leftDecibelLabel);
+    leftDecibelLabel.attachToComponent(&leftDecibelSlider, true);
+
+    ////left slider linear label
+    //addAndMakeVisible(leftLinearLabel);
+    //leftLinearLabel.attachToComponent(&leftLinearSlider, true);
+
+    //right channel decibel slider
+    addAndMakeVisible(rightDecibelSlider);
+    rightDecibelSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxRight, false, 75, 25);
+
+    ////right channel linear slider
+    //addAndMakeVisible(rightLinearSlider);
+    //rightLinearSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxRight, false, 75, 25);
+
+    //right slider decibel label
+    addAndMakeVisible(rightDecibelLabel);
+    rightDecibelLabel.attachToComponent(&rightDecibelSlider, true);
+
+    ////right slider linear label
+    //addAndMakeVisible(rightLinearLabel);
+    //rightLinearLabel.attachToComponent(&rightLinearSlider, true);
+
 }
 
 void MainComponent::resized()
 {
-    keyboardComponent.setBounds(10, 40, getWidth() - 20, getHeight() - 50);
-}
+    // This is called when the MainContentComponent is resized.
+    // If you add any child components, this is where you should
+    // update their positions.
 
-//callback for when startTimer() is called
-void MainComponent::timerCallback()
-{
-    keyboardComponent.grabKeyboardFocus();
-    stopTimer();
-}
-
-
-//----- SynthAudioSource methods -----
-
-SynthAudioSource::SynthAudioSource(juce::MidiKeyboardState& keyState)
-    : keyboardState(keyState)
-{
-    //We add some voices to our synthesiser.This number of voices added determines the polyphony of the synthesiser.
-    //so, 4 voices in this case
-    for (auto i = 0; i < 4; ++i)
-        synth.addVoice(new SineWaveVoice());
-
-    //We add the sound so that the synthesiser knows which sounds it can play.
-    synth.addSound(new SineWaveSound());
-}
-
-void SynthAudioSource::setUsingSineWaveSound()
-{
-    synth.clearSounds();
-}
-
-void SynthAudioSource::prepareToPlay(int /*samplesPerBlockExpected*/, double sampleRate)
-{
-    //The synthesiser needs to know the sample rate of the audio output.
-    synth.setCurrentPlaybackSampleRate(sampleRate);
-    //In order to process the timestamps of the MIDI data the MidiMessageCollector class needs to know the audio sample rate
-    midiCollector.reset(sampleRate);
-}
-
-void SynthAudioSource::releaseResources()
-{
-
-}
-
-void SynthAudioSource::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill)
-{
-    bufferToFill.clearActiveBufferRegion();
-
-    juce::MidiBuffer incomingMidi;
-
-    //pull any MIDI messages for each block of audio using the MidiMessageCollector::removeNextBlockOfMessages()
-    midiCollector.removeNextBlockOfMessages(incomingMidi, bufferToFill.numSamples);
-
-    //In the getNextAudioBlock() function we pull buffers of MIDI data from the MidiKeyboardState object.
-    keyboardState.processNextMidiBuffer(incomingMidi, bufferToFill.startSample, bufferToFill.numSamples, true);
-
-    //These buffers of MIDI are passed to the synthesiser which will be used to render the voices using the timestamps of the note-on and note-off messages (and other MIDI channel voice messages).
-    synth.renderNextBlock(*bufferToFill.buffer, incomingMidi, bufferToFill.startSample, bufferToFill.numSamples);
-}
-
-//We'll need access to this MidiMessageCollector object from outside the SynthAudioSource class, so add an accessor
-juce::MidiMessageCollector* SynthAudioSource::getMidiCollector()
-{
-    return &midiCollector;
-}
-
-
-
-//----- SineWaveVoice methods -----
- 
-//return whether the voice can play a sound
-bool SineWaveVoice::canPlaySound(juce::SynthesiserSound* sound)
-{
-    //use dynamic_cast to check the type of the sound class being passed in
-    return dynamic_cast<SineWaveSound*> (sound) != nullptr;
-}
-
-//A voice is started by the owning synthesiser by calling our SynthesiserVoice::startNote() function
-void SineWaveVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserSound*, int /*currentPitchWheelPosition*/)
-{
-    currentAngle = 0.0;
-    //use velocity to change level of note played
-    level = velocity * 0.15;
-    tailOff = 0.0;
-
-    //convert MIDI note to frequency
-    auto cyclesPerSecond = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
-    auto cyclesPerSample = cyclesPerSecond / getSampleRate();
-
-    //multiply by 2pi, length of whole sine wave
-    angleDelta = cyclesPerSample * 2.0 * juce::MathConstants<double>::pi;
-}
-
-//generate audio
-void SineWaveVoice::renderNextBlock(juce::AudioSampleBuffer& outputBuffer, int startSample, int numSamples)
-{
-    if (angleDelta != 0.0)
-    {
-        //When the key has been released the tailOff value will be greater than zero
-        if (tailOff > 0.0)
-        {
-            while (--numSamples >= 0)
-            {
-                auto currentSample = (float)(std::sin(currentAngle) * level * tailOff);
-
-                //play in mono or stereo depending on # of output channels
-                for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
-                    //startSample is current index to add sample to because numSamples is decremented each loop iteration and startSample is incremented
-                    outputBuffer.addSample(i, startSample, currentSample);
-
-                currentAngle += angleDelta;
-                ++startSample;
-
-                //We use a simple exponential decay envelope shape.
-                tailOff *= 0.99;
-
-                //When the tailOff value is small we determine that the voice has ended
-                if (tailOff <= 0.005)
-                {
-                    //We must call the SynthesiserVoice::clearCurrentNote() function at this point so that the voice is reset and available to be reused.
-                    clearCurrentNote();
-
-                    angleDelta = 0.0;
-                    break;
-                }
-
-            }
-        }
-
-        //This loop is used for the normal state of the voice, while the key is being held down
-        else
-        {
-            while(--numSamples >= 0)
-            {
-                auto currentSample = (float)(std::sin(currentAngle) * level);
-
-                for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
-                    outputBuffer.addSample(i, startSample, currentSample);
-
-                currentAngle += angleDelta;
-                ++startSample;
-            }
-        }
-    }
-}
-
-//voice is stopped by the owning synthersiser calling our SynthesiserVoice::stopNote()
-void SineWaveVoice::stopNote(float /*velocity*/, bool allowTailOff)
-{
-    if (allowTailOff)
-    {
-        if (tailOff == 0.0)
-            tailOff = 1.0;
-    }
-
-    else
-    {
-        clearCurrentNote();
-        angleDelta = 0.0;
-    }
+    auto sliderLeft = 120;
+    leftDecibelSlider.setBounds(sliderLeft, 50, getWidth() - sliderLeft * 2, 50);
+    rightDecibelSlider.setBounds(sliderLeft, 100, getWidth() - sliderLeft * 2, 50); 
+    leftLinearSlider.setBounds(sliderLeft, 150, getWidth() - sliderLeft * 2, 50);
+    rightLinearSlider.setBounds(sliderLeft, 200, getWidth() - sliderLeft * 2, 50);
+    
 }

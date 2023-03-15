@@ -2,76 +2,41 @@
 
 #include <JuceHeader.h>
 
-//Sound class. Doesn't need to contain any data, just needs to report whether this sound should play on particular MIDI channels and specific notes or note ranges on that channel
-struct SineWaveSound : public juce::SynthesiserSound
-{
-    //no code block for constructor
-    SineWaveSound() {}
 
-    //override function with simple one liner. Always return true
-    bool appliesToNote (int) override { return true; }
-    bool appliesToChannel(int) override { return true; }
-};
-
-
-//class that needs to maintain the state of one of the voices of the synthesiser
-struct SineWaveVoice : public juce::SynthesiserVoice
-{
-    SineWaveVoice() {}
-
-    bool canPlaySound(juce::SynthesiserSound* sound) override;
-
-    void startNote(int midiNoteNumber, float velocity, juce::SynthesiserSound*, int /*currentPitchWheelPosition*/) override;
-
-    void stopNote(float /*velocity*/, bool allowTailOff) override;
-
-    void pitchWheelMoved(int) override {}
-    void controllerMoved(int, int) override {}
-
-    void renderNextBlock(juce::AudioSampleBuffer& outputBuffer, int startSample, int numSamples) override;
-
-
-private:
-    //first 3 vars from sine wave generator tutorial
-    double currentAngle = 0.0;
-    double angleDelta = 0.0;
-    double level = 0.0;
-    //tailOff used to give each voice a slightly softer release to its amplitude envelope
-    double tailOff = 0.0;
-};
-
-
-//SynthAudioSource: This implements a custom AudioSource class called SynthAudioSource, which contains the Synthesiser class itself. This outputs all of the audio from the synthesiser.
-class SynthAudioSource : public juce::AudioSource
+//=========== custom decibel slider class =============
+class DecibelSlider : public juce::Slider
 {
 public:
-    //constructor
-    SynthAudioSource(juce::MidiKeyboardState& keyState);
+    DecibelSlider() {}
 
-    //public methods
-    void  setUsingSineWaveSound();
-    void prepareToPlay(int /*samplesPerBlockExpected*/, double sampleRate) override;
-    void releaseResources() override;
-    void getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill) override;
+    double getValueFromText(const juce::String& text) override
+    {
+        //usually -100 is default -INF. Changing to -90.0 as part of tutorial exercise
+        auto minusInfinitydB = -96.0;
 
-    juce::MidiMessageCollector* getMidiCollector();
+        auto decibelText = text.upToFirstOccurrenceOf("dB", false, false).trim(); 
+
+        //check if text = -INF. IF so, return -96 ( custom value of -inf as defined in this method). Else, return number value from text
+        return decibelText.equalsIgnoreCase("-INF") ? minusInfinitydB
+            : decibelText.getDoubleValue(); 
+    }
+
+    juce::String getTextFromValue(double value) override
+    {
+        //change default -INF from -100 to -96
+        return juce::Decibels::toString(value, 2, -96.0);
+    }
 
 private:
-    juce::MidiKeyboardState& keyboardState;
-    juce::Synthesiser synth;
-    juce::MidiMessageCollector midiCollector;
-
-    //members for handling MIDI events
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DecibelSlider)
 };
-
 
 //==============================================================================
 /*
     This component lives inside our window, and this is where you should put all
     your controls and content.
 */
-class MainComponent  : public juce::AudioAppComponent,
-                       private juce::Timer
+class MainComponent  : public juce::AudioAppComponent
 {
 public:
     //==============================================================================
@@ -89,14 +54,18 @@ public:
 
 private:
     //==============================================================================
-    void timerCallback() override;
 
-    //==============================================================================
-    juce::MidiKeyboardState keyboardState;
-    SynthAudioSource synthAudioSource;
-    juce::MidiKeyboardComponent keyboardComponent;
+    DecibelSlider leftDecibelSlider;
+    DecibelSlider rightDecibelSlider;
+    juce::Slider leftLinearSlider;
+    juce::Slider rightLinearSlider;
+    juce::Label leftDecibelLabel;
+    juce::Label rightDecibelLabel;
+    juce::Label leftLinearLabel;
+    juce::Label rightLinearLabel;
+    juce::Random random;
+    float leftLevel{ 0.0f};
+    float rightLevel{ 0.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
-
-

@@ -10,11 +10,11 @@
 #include "MainComponent.h"
 
 //==============================================================================
-class sineSynthTutorialApplication  : public juce::JUCEApplication
+class SimpleSynthNoiseTutorialApplication  : public juce::JUCEApplication
 {
 public:
     //==============================================================================
-    sineSynthTutorialApplication() {}
+    SimpleSynthNoiseTutorialApplication() {}
 
     const juce::String getApplicationName() override       { return ProjectInfo::projectName; }
     const juce::String getApplicationVersion() override    { return ProjectInfo::versionString; }
@@ -102,4 +102,4 @@ private:
 
 //==============================================================================
 // This macro generates the main() routine that launches the app.
-START_JUCE_APPLICATION (sineSynthTutorialApplication)
+START_JUCE_APPLICATION (SimpleSynthNoiseTutorialApplication)
