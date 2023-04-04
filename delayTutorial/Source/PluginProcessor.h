@@ -58,9 +58,11 @@ public:
 
 private:
     //circular buffer function
-    void fillBuffer(int channel, int bufferSize, int delayBufferSize, float* channelData);
+    void fillBuffer(juce::AudioBuffer<float>& buffer, int channel);
     //function to read in delayed signal
-    void readFromBuffer(juce::AudioBuffer<float>& buffer, juce::AudioBuffer<float>& delayBuffer, int channel, int bufferSize, int delayBufferSize);
+    void readFromBuffer(juce::AudioBuffer<float>& buffer, juce::AudioBuffer<float>& delayBuffer, int channel);
+    //function to update buffer writePosition 
+    void updateBufferPosition(juce::AudioBuffer<float>& buffer, juce::AudioBuffer<float>& delayBuffer);
 
     juce::AudioBuffer<float> delayBuffer;
     int writePosition{ 0 };
