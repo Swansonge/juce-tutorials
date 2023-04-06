@@ -67,6 +67,12 @@ private:
     juce::AudioBuffer<float> delayBuffer;
     int writePosition{ 0 };
 
+    //set up parameters
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
+    juce::AudioProcessorValueTreeState params;
+    std::atomic<float>* delayMsParam = nullptr;
+    std::atomic<float>* feedbackParam = nullptr;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DelayTutorialAudioProcessor)
 };

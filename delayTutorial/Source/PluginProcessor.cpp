@@ -19,7 +19,8 @@ DelayTutorialAudioProcessor::DelayTutorialAudioProcessor()
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
-                       )
+                          //when plugin initializes it needs list of parameters
+                       ), params (*this, nullptr, "Parameters", createParameters())
 #endif
 {
 }
@@ -191,17 +192,21 @@ void DelayTutorialAudioProcessor::readFromBuffer(juce::AudioBuffer<float>& buffe
 
     auto bufferSize = buffer.getNumSamples();
     auto delayBufferSize = delayBuffer.getNumSamples();
+  
 
     //read position is 1 sec in the past of write position (current position)
     // !!changing readPosition changes delay amount!!
-    auto readPosition = writePosition - (getSampleRate() * 0.5f);
+    auto* delayTime = params.getRawParameterValue("DELAYMS");
+    auto readPosition = writePosition - (delayTime->load());
+
+    //feedback
+    auto* gain = params.getRawParameterValue("FEEDBACK");
+    auto g = gain->load();
 
     //if read position is < 0, pull from END indices of delay buffer
     if (readPosition < 0)
         //+= because adding a negative number
         readPosition += delayBufferSize;
-
-    auto g = 0.7f;
 
     //easy situation: has room to write bufferSize amount of data to buffer (won't spill over to beginning)
     if (readPosition + bufferSize < delayBufferSize)
@@ -241,7 +246,8 @@ bool DelayTutorialAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* DelayTutorialAudioProcessor::createEditor()
 {
-    return new DelayTutorialAudioProcessorEditor (*this);
+    // !! GenericAudioProcessorEditor dynamically creates generic JUCE UI from listed parameters !!
+    return new juce::GenericAudioProcessorEditor (*this);
 }
 
 //==============================================================================
@@ -263,5 +269,16 @@ void DelayTutorialAudioProcessor::setStateInformation (const void* data, int siz
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new DelayTutorialAudioProcessor();
+}
+
+//function to create AudioProcessorValueTreeState parameters
+juce::AudioProcessorValueTreeState::ParameterLayout DelayTutorialAudioProcessor::createParameters()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("DELAYMS", "Delay ms", 0.0f, 96000.0f, 0.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("FEEDBACK", "Feedback", 0.0f, 1.0f, 0.0f));
+
+    return { params.begin(), params.end() };
 }
 
