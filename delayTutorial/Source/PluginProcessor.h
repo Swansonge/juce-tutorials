@@ -73,6 +73,9 @@ private:
     std::atomic<float>* delayMsParam = nullptr;
     std::atomic<float>* feedbackParam = nullptr;
 
+    //using smoothing on parameter values to prevent clicks and pops
+    juce::LinearSmoothedValue<float> g{ 0.0f };
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DelayTutorialAudioProcessor)
 };

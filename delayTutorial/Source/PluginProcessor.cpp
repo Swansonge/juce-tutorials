@@ -97,6 +97,10 @@ void DelayTutorialAudioProcessor::prepareToPlay (double sampleRate, int samplesP
     //set circular buffer to hold 2 sec of audio
     auto delayBufferSize = sampleRate * 2.0;
     delayBuffer.setSize(getNumOutputChannels(), (int)delayBufferSize);
+
+    //reset linear smoothed values
+    g.reset(sampleRate, 0.005);
+
 }
 
 void DelayTutorialAudioProcessor::releaseResources()
@@ -194,14 +198,22 @@ void DelayTutorialAudioProcessor::readFromBuffer(juce::AudioBuffer<float>& buffe
     auto delayBufferSize = delayBuffer.getNumSamples();
   
 
-    //read position is 1 sec in the past of write position (current position)
-    // !!changing readPosition changes delay amount!!
-    auto* delayTime = params.getRawParameterValue("DELAYMS");
-    auto readPosition = writePosition - (delayTime->load());
-
     //feedback
     auto* gain = params.getRawParameterValue("FEEDBACK");
-    auto g = gain->load();
+
+    //use setTargetValue to assign value to LinearSmoothedValue
+    //using ->load() gets float value from parameter
+    g.setTargetValue(gain->load());
+
+    //use getNextValue() when LinearSmoothedValue is inside a function to retrieve actual float value
+    auto feedback = g.getNextValue();
+
+    //read position is 1 sec in the past of write position (current position)
+    // !!changing readPosition changes delay amount!!
+    auto* delayMs = params.getRawParameterValue("DELAYMS");
+    auto delayTime = delayMs->load();
+    auto readPosition = writePosition - delayTime;
+
 
     //if read position is < 0, pull from END indices of delay buffer
     if (readPosition < 0)
@@ -213,19 +225,19 @@ void DelayTutorialAudioProcessor::readFromBuffer(juce::AudioBuffer<float>& buffe
     {
         //addFrom() adds data to main buffer without overwriting contents
         //addFromWithRamp() because delay signal is a little quieter than main signal
-        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), bufferSize, g, g);
+        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), bufferSize, feedback, feedback);
     }
     //if read position is towards end of delay buffer and doesn't have bufferSize amount of data to copy over to the main buffer.
     //copy some to end of buffer, then some to beginning of buffer
     else
     {
         auto numSamplesToEnd = delayBufferSize - readPosition;
-        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), numSamplesToEnd, g, g);
+        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), numSamplesToEnd, feedback, feedback);
 
         auto numSamplesAtStart = bufferSize - numSamplesToEnd;
         //destStartSample is not 0 because we've already added numSamplesToEnd of samples to main buffer
         //sampleIndex for getReadPointer() is 0 because we've wrapped back to the beginning of the delayu buffer to grab samples from
-        buffer.addFromWithRamp(channel, numSamplesToEnd, delayBuffer.getReadPointer(channel, 0), numSamplesAtStart, g, g);
+        buffer.addFromWithRamp(channel, numSamplesToEnd, delayBuffer.getReadPointer(channel, 0), numSamplesAtStart, feedback, feedback);
     }
 }
 
